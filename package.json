@@ -1,0 +1,13 @@
+{
+    "name": "roon-extension-dynaudio-volume",
+    "version": "1.0.0",
+    "description": "Roon Dynaudio Volume Control",
+    "main": "app.js",
+    "author": "Ivo Näpflin",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "jackpot": "0.0.6",
+        "node-roon-api": "github:roonlabs/node-roon-api",
+        "node-roon-api-volume-control": "github:roonlabs/node-roon-api-volume-control"
+    }
+}
