@@ -3,7 +3,7 @@
 var RoonApi = require("node-roon-api");
 var RoonApiVolumeControl = require('node-roon-api-volume-control');
 var net = require('net');
-var ConnectionPool = require('jackpot');
+const genericPool = require("generic-pool");
 
 var core;
 
@@ -57,12 +57,23 @@ var device = {
 };
 
 var dynaudioVolumeControl = svc_volume_control.new_device(device);
-
-
 roon.start_discovery();
 
-var pool = new ConnectionPool(100);
-pool.factory(function () {
+const factory = {
+  create: createSocket,
+  destroy: function(socket) {
+    socket.end();
+  }
+};
+
+const opts = {
+  max: 1, // maximum size of the pool
+  min: 0 // minimum size of the pool
+};
+
+const connectionPool = genericPool.createPool(factory, opts);
+
+function createSocket() {
   let connection = net.connect(1901, '192.168.178.30'); // TODO: make configurable
   connection.on('connect', () => {
     console.log('connected to server'); // TODO: only start sending messages once we're connected! (otherwise we don't hear responses)
@@ -86,39 +97,32 @@ pool.factory(function () {
     console.log('timeout');
   });
   return connection;
-});
-
-setTimeout(function () {
-  /*pool.pull(function (err, connection) {
-    if (!err) {
-      let message = Buffer.from([0xFF, 0x55, 0x05, 0x2F, 0xA0, 0x15, 0x05, 0x53, 0xBF]);
-      connection.write(message);
-    }
-  });*/
-  setVolume(5); // causes crash (because too many request in short time): error: Error: write EPIPE
-  console.log('sent');
-}, 5000);
+}
 
 function setVolume(vol) {
   let dynaudioVol = Math.ceil(vol / 5);
 
-  // TODO: add error handling
-  pool.pull(function (err, connection) {
-    if (!err) {
-      let volumeUp = true; // TODO: Add logic here. Also seems to work without logic
-      let commandCode = volumeUp ? 0x13 : 0x14;
-      let commandValue = 0x05; // TODO: Add logic here. Works only with USB input
-      let statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
-      let payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
+  let volumeUp = true; // TODO: Add logic here. Also seems to work without logic
+  let commandCode = volumeUp ? 0x13 : 0x14;
+  let commandValue = 0x05; // TODO: Add logic here. Works only with USB input
+  let statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
+  let payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
 
-      let payloadSum = payload.reduce((total, num) => {return total + num;});
-      let checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
-      // TODO: If the result is negative add 256
+  let payloadSum = payload.reduce((total, num) => {return total + num;});
+  let checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
+  // TODO: If the result is negative add 256
 
-      let message = Buffer.from([0xFF, 0x55, commandValue].concat(payload, [checksum]));
-      connection.write(message);
-    }
-  });
+  let message = Buffer.from([0xFF, 0x55, commandValue].concat(payload, [checksum]));
+
+  const resourcePromise = connectionPool.acquire();
+  resourcePromise
+    .then(function(socket) {
+      socket.write(message);
+      connectionPool.release(socket);
+    })
+    .catch(function(err) {
+      console.log("Error: " + err);
+    });
 
   dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
   // TODO: launch with correct initial value loaded from Connect
