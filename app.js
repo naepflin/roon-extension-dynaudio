@@ -122,12 +122,13 @@ const opts = {
 const connectionPool = genericPool.createPool(factory, opts);
 
 function createSocket() {
-  let connection = net.connect(1901, mysettings.ip); // TODO: make configurable
+  let connection = net.connect(1901, mysettings.ip);
   connection.on('connect', () => {
     console.log('connected to server'); // TODO: only start sending messages once we're connected! (otherwise we don't hear responses)
   });
   connection.on('data', (data) => {
     console.log(new Date().toISOString() + ': ' + data.toString('hex'));
+    processTCPResponse(data);
   });
   connection.on('end', () => {
     console.log('disconnected from server');
@@ -175,8 +176,22 @@ function sendVolumeUpdate(vol) {
   dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
 }
 
+function processTCPResponse(message) {
+  const payloadSize = message[2];
+  const checksum = message[message.length-1];
+  const payload = message.slice(3, message.length-1);
+  console.log("payload:");
+  console.log(payload);
+
+  // check if the message is a feedback
+  if(payload[0] == 0x2e && payload[1] == 0xa0) {
+    // check if it's a volume change (0x04 means volume up, 0x05 means volume down):
+    if(payload[2] == 0x04 || payload[2] == 0x05) {
+      const newvol = payload[3];
+      dynaudioVolumeControl.update_state({ volume_value: newvol * 5 });;
+    }
+  }
+}
+
 // TODO: launch with correct initial value loaded from Connect (or better from Roon!)
-// TODO: listen to network for volume updates from Connect
-// example for remote volume change:
-// 2017-11-27T20:55:53.433Z: ff5508 2ea0 0404 4100 00db 06
-// 2017-11-27T20:55:59.183Z: ff5508 2ea0 0503 4100 00db 06
+// TODO: establish a TCP connection immediately when extension launches
