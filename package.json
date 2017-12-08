@@ -1,5 +1,5 @@
 {
-    "name": "roon-extension-dynaudio-volume",
+    "name": "roon-extension-dynaudio",
     "version": "1.0.0",
     "description": "Roon Dynaudio Volume Control",
     "main": "app.js",
@@ -8,6 +8,7 @@
     "dependencies": {
         "generic-pool": "^3.2.0",
         "node-roon-api": "github:roonlabs/node-roon-api",
+        "node-roon-api-settings": "github:roonlabs/node-roon-api-settings",
         "node-roon-api-volume-control": "github:roonlabs/node-roon-api-volume-control"
     }
 }

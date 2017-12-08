@@ -1,36 +1,90 @@
 "use strict";
 
-var RoonApi = require("node-roon-api");
-var RoonApiVolumeControl = require('node-roon-api-volume-control');
-var net = require('net');
+const RoonApi = require("node-roon-api");
+const RoonApiVolumeControl = require('node-roon-api-volume-control');
+const RoonApiSettings = require('node-roon-api-settings');
+const net = require('net');
 const genericPool = require("generic-pool");
 
-var core;
-
-var roon = new RoonApi({
-    extension_id:        'com.naepflin.dynaudiovolume',
+const roon = new RoonApi({
+    extension_id:        'com.naepflin.roon-dynaudio',
     display_name:        "Dynaudio Volume Control",
     display_version:     "1.0.0",
     publisher:           'Ivo Näpflin',
     email:               'git@naepflin.com',
-    website:             'https://github.com/naepflin/roon-dynaudio-volume',
-
-    core_paired: function(core_) {
-      core = core_;
-    },
-    core_unpaired: function(core_) {
-      core = undefined;
-    },
+    website:             'https://github.com/naepflin/roon-extension-dynaudio',
 });
 
-var svc_volume_control = new RoonApiVolumeControl(roon);
+var mysettings = roon.load_config("settings") || {
+    ip: "",
+    source: 0x05,
+    initialvolume: 5,
+};
 
+function makelayout(settings) {
+  var l = {
+    values:    settings,
+    layout:    [],
+    has_error: false
+  };
+
+  l.layout.push({
+    type:      "string",
+    title:     "IP Address",
+    maxlength: 15,
+    setting:   "ip",
+  });
+
+  l.layout.push({
+    type:    "dropdown",
+    title:   "Source",
+    values:  [
+      { value: 0x05, title: "USB" },
+    ],
+    setting: "source",
+  });
+  l.layout.push({
+    type:    "integer",
+    title:   "Initial Volume",
+    min:     0,
+    max:     155,
+    setting: "initialvolume",
+  });
+
+  return l;
+}
+
+const svc_settings = new RoonApiSettings(roon, {
+  get_settings: function(cb) {
+    cb(makelayout(mysettings));
+  },
+  save_settings: function(req, isdryrun, settings) {
+    let l = makelayout(settings.values);
+    req.send_complete(l.has_error ? "NotValid" : "Success", { settings: l });
+
+    if (!isdryrun && !l.has_error) {
+      var oldip = mysettings.ip;
+      mysettings = l.values;
+      svc_settings.update_settings(l);
+      let force = false;
+      if (oldip != mysettings.ip) force = true;
+      // destroy the current socket to reload it with the new settings:
+      connectionPool.acquire().then(function(socket) {
+        connectionPool.destroy(socket);
+      });
+
+      roon.save_config("settings", mysettings);
+    }
+  }
+});
+
+const svc_volume_control = new RoonApiVolumeControl(roon);
 
 roon.init_services({
-  provided_services: [ svc_volume_control ],
+  provided_services: [ svc_volume_control, svc_settings ],
 });
 
-var device = {
+const device = {
   state: {
     display_name: "Dynaudio Connect",
     volume_type:  "number",
@@ -47,7 +101,7 @@ var device = {
 
     if (Math.ceil(newvol / 5) != Math.ceil(this.state.volume_value / 5 )) {
       this.state.volume_value = newvol;
-      setVolume(newvol);
+      sendVolumeUpdate(newvol);
     }
     req.send_complete("Success");
   },
@@ -56,7 +110,7 @@ var device = {
   }
 };
 
-var dynaudioVolumeControl = svc_volume_control.new_device(device);
+const dynaudioVolumeControl = svc_volume_control.new_device(device);
 roon.start_discovery();
 
 const factory = {
@@ -65,16 +119,14 @@ const factory = {
     socket.end();
   }
 };
-
 const opts = {
   max: 1, // maximum size of the pool
   min: 0 // minimum size of the pool
 };
-
 const connectionPool = genericPool.createPool(factory, opts);
 
 function createSocket() {
-  let connection = net.connect(1901, '192.168.178.30'); // TODO: make configurable
+  let connection = net.connect(1901, mysettings.ip); // TODO: make configurable
   connection.on('connect', () => {
     console.log('connected to server'); // TODO: only start sending messages once we're connected! (otherwise we don't hear responses)
   });
@@ -99,20 +151,20 @@ function createSocket() {
   return connection;
 }
 
-function setVolume(vol) {
-  let dynaudioVol = Math.ceil(vol / 5);
+function sendVolumeUpdate(vol) {
+  const dynaudioVol = Math.ceil(vol / 5);
 
-  let volumeUp = true; // TODO: Add logic here. Also seems to work without logic
-  let commandCode = volumeUp ? 0x13 : 0x14;
-  let commandValue = 0x05; // TODO: Add logic here. Works only with USB input
-  let statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
-  let payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
+  const volumeUp = true; // TODO: Add logic here. Also seems to work without logic
+  const commandCode = volumeUp ? 0x13 : 0x14;
+  const commandValue = 0x05; // TODO: Add logic here. Works only with USB input
+  const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
+  const payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
 
-  let payloadSum = payload.reduce((total, num) => {return total + num;});
-  let checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
+  const payloadSum = payload.reduce((total, num) => {return total + num;});
+  const checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
   // TODO: If the result is negative add 256
 
-  let message = Buffer.from([0xFF, 0x55, commandValue].concat(payload, [checksum]));
+  const message = Buffer.from([0xFF, 0x55, commandValue].concat(payload, [checksum]));
 
   const resourcePromise = connectionPool.acquire();
   resourcePromise
@@ -125,11 +177,10 @@ function setVolume(vol) {
     });
 
   dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
-  // TODO: launch with correct initial value loaded from Connect
-
-  // TODO: listen to network for volume updates from Connect
-  // example for remote volume change:
-  // 2017-11-27T20:55:53.433Z: ff5508 2ea0 0404 4100 00db 06
-  // 2017-11-27T20:55:59.183Z: ff5508 2ea0 0503 4100 00db 06
-
 }
+
+// TODO: launch with correct initial value loaded from Connect (or better from Roon!)
+// TODO: listen to network for volume updates from Connect
+// example for remote volume change:
+// 2017-11-27T20:55:53.433Z: ff5508 2ea0 0404 4100 00db 06
+// 2017-11-27T20:55:59.183Z: ff5508 2ea0 0503 4100 00db 06
