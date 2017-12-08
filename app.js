@@ -63,16 +63,12 @@ const svc_settings = new RoonApiSettings(roon, {
     req.send_complete(l.has_error ? "NotValid" : "Success", { settings: l });
 
     if (!isdryrun && !l.has_error) {
-      var oldip = mysettings.ip;
       mysettings = l.values;
       svc_settings.update_settings(l);
-      let force = false;
-      if (oldip != mysettings.ip) force = true;
       // destroy the current socket to reload it with the new settings:
       connectionPool.acquire().then(function(socket) {
         connectionPool.destroy(socket);
       });
-
       roon.save_config("settings", mysettings);
     }
   }
