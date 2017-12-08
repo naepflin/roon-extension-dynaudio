@@ -182,8 +182,6 @@ function processTCPResponse(message) {
   const payloadSize = message[2];
   const checksum = message[message.length-1];
   const payload = message.slice(3, message.length-1);
-  console.log("payload:");
-  console.log(payload);
 
   // check if the message is a feedback
   if(payload[0] == 0x2e && payload[1] == 0xa0) {
