@@ -80,13 +80,15 @@ roon.init_services({
   provided_services: [ svc_volume_control, svc_settings ],
 });
 
+const initialVolume = isNaN(parseInt(mysettings.initialvolume)) ? 5 : parseInt(mysettings.initialvolume);
+
 const device = {
   state: {
     display_name: "Dynaudio Connect",
     volume_type:  "number",
     volume_min:   0,
     volume_max:   155,
-    volume_value: 5,
+    volume_value: initialVolume,
     volume_step:  1,
     is_muted:     false
   },
