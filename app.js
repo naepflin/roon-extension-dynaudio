@@ -18,7 +18,7 @@ const roon = new RoonApi({
 var mysettings = roon.load_config("settings") || {
     ip: "",
     source: 0x05,
-    initialvolume: 5,
+    initialvolume: 1,
 };
 
 function makelayout(settings) {
@@ -47,7 +47,7 @@ function makelayout(settings) {
     type:    "integer",
     title:   "Initial Volume",
     min:     0,
-    max:     155,
+    max:     31,
     setting: "initialvolume",
   });
 
@@ -80,14 +80,14 @@ roon.init_services({
   provided_services: [ svc_volume_control, svc_settings ],
 });
 
-const initialVolume = isNaN(parseInt(mysettings.initialvolume)) ? 5 : parseInt(mysettings.initialvolume);
+const initialVolume = isNaN(parseInt(mysettings.initialvolume)) ? 1 : parseInt(mysettings.initialvolume);
 
 const device = {
   state: {
     display_name: "Dynaudio Connect",
     volume_type:  "number",
     volume_min:   0,
-    volume_max:   155,
+    volume_max:   31,
     volume_value: initialVolume,
     volume_step:  1,
     is_muted:     false
@@ -97,7 +97,7 @@ const device = {
     if      (newvol < this.state.volume_min) newvol = this.state.volume_min;
     else if (newvol > this.state.volume_max) newvol = this.state.volume_max;
 
-    if (Math.ceil(newvol / 5) != Math.ceil(this.state.volume_value / 5 )) {
+    if (Math.ceil(newvol) != Math.ceil(this.state.volume_value )) {
       this.state.volume_value = newvol;
       sendVolumeUpdate(newvol);
     }
@@ -151,7 +151,7 @@ function createSocket() {
 }
 
 function sendVolumeUpdate(vol) {
-  const dynaudioVol = Math.ceil(vol / 5);
+  const dynaudioVol = Math.ceil(vol);
 
   const volumeUp = true; // TODO: Add logic here. Also seems to work without logic
   const commandCode = volumeUp ? 0x13 : 0x14;
@@ -188,7 +188,7 @@ function processTCPResponse(message) {
     // check if it's a volume change (0x04 means volume up, 0x05 means volume down):
     if(payload[2] == 0x04 || payload[2] == 0x05) {
       const newvol = payload[3];
-      dynaudioVolumeControl.update_state({ volume_value: newvol * 5 });;
+      dynaudioVolumeControl.update_state({ volume_value: newvol });;
     }
   }
 }
