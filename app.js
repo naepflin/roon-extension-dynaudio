@@ -137,6 +137,7 @@ function createSocket() {
   });
   connection.on('error', (e) => {
     console.log('error: ' + e);
+    connectionPool.destroy(connection);
   });
   connection.on('close', (had_error) => {
     console.log('close ' + had_error ? "with error" : "without error");
