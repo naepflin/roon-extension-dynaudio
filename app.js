@@ -5,6 +5,7 @@ const RoonApiVolumeControl = require('node-roon-api-volume-control');
 const RoonApiSettings = require('node-roon-api-settings');
 const net = require('net');
 const genericPool = require("generic-pool");
+const http = require('http');
 
 const roon = new RoonApi({
     extension_id:        'com.naepflin.roon-dynaudio',
@@ -179,6 +180,11 @@ function sendVolumeUpdate(vol) {
   dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
 }
 
+const incomingRequestCounter = {
+  time: new Date(),
+  counter: 0
+};
+
 function processTCPResponse(message) {
   const payloadSize = message[2];
   const checksum = message[message.length-1];
@@ -191,6 +197,28 @@ function processTCPResponse(message) {
       const newvol = payload[3];
       dynaudioVolumeControl.update_state({ volume_value: newvol });;
     }
+  }
+
+  // check if Dynaudio Connect has crashed
+  if(((new Date()) - incomingRequestCounter.time) > 10000) {
+    incomingRequestCounter.time = new Date();
+    incomingRequestCounter.counter = 0;
+  }
+  else {
+    incomingRequestCounter.counter++;
+  }
+  // if Dynaudio Connect has crashed:
+  if(incomingRequestCounter.counter > 100) {
+    console.log(new Date().toISOString() + ': ' + 'Dynaudio Connect crashed and was reset.');
+    http.get('http://192.168.178.28/relay?state=0', (resp) => {}).on("error", (err) => {
+      console.log("Error turning off Dynaudio Connect: " + err.message);
+    });
+    setTimeout(() => {
+      http.get('http://192.168.178.28/relay?state=1', (resp) => {}).on("error", (err) => {
+        console.log("Error turning on Dynaudio Connect: " + err.message);
+      });
+    }, 2000)
+    incomingRequestCounter.counter = 0;
   }
 }
 
