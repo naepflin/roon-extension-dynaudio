@@ -6,7 +6,7 @@
     "author": "Ivo Näpflin",
     "license": "Apache-2.0",
     "dependencies": {
-        "generic-pool": "^3.2.0",
+        "generic-pool": "^3.4.2",
         "node-roon-api": "github:roonlabs/node-roon-api",
         "node-roon-api-settings": "github:roonlabs/node-roon-api-settings",
         "node-roon-api-volume-control": "github:roonlabs/node-roon-api-volume-control"
