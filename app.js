@@ -210,11 +210,11 @@ function processTCPResponse(message) {
   // if Dynaudio Connect has crashed:
   if(incomingRequestCounter.counter > 100) {
     console.log(new Date().toISOString() + ': ' + 'Dynaudio Connect crashed and was reset.');
-    http.get('http://192.168.178.28/relay?state=0', (resp) => {}).on("error", (err) => {
+    http.get('http://192.168.1.23/relay?state=0', (resp) => {}).on("error", (err) => {
       console.log("Error turning off Dynaudio Connect: " + err.message);
     });
     setTimeout(() => {
-      http.get('http://192.168.178.28/relay?state=1', (resp) => {}).on("error", (err) => {
+      http.get('http://192.168.1.23/relay?state=1', (resp) => {}).on("error", (err) => {
         console.log("Error turning on Dynaudio Connect: " + err.message);
       });
     }, 2000)
