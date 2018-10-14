@@ -154,14 +154,25 @@ function createSocket() {
 
 function sendVolumeUpdate(vol) {
   const dynaudioVol = Math.ceil(vol);
-
   const volumeUp = true; // TODO: Add logic here. Also seems to work without logic
   const commandCode = volumeUp ? 0x13 : 0x14;
-  const payloadSize = 0x05;
   const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
   const payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
+  sendPayload(payload);
 
+  dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
+}
+
+function sendInputChange(input) {
+  const commandCode = 0x15;
+  const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
+  const payload = [0x2F, 0xA0, commandCode, input, statusValue];
+  sendPayload(payload);
+}
+
+function sendPayload(payload) {
   const payloadSum = payload.reduce((total, num) => {return total + num;});
+  const payloadSize = 0x05;
   const checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
   // TODO: If the result is negative add 256
 
@@ -176,8 +187,6 @@ function sendVolumeUpdate(vol) {
     .catch(function(err) {
       console.log("Error: " + err);
     });
-
-  dynaudioVolumeControl.update_state({ volume_value: vol }); // TODO: Update only if update is successful
 }
 
 const incomingRequestCounter = {
