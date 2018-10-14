@@ -2,10 +2,27 @@
 
 const RoonApi = require("node-roon-api");
 const RoonApiVolumeControl = require('node-roon-api-volume-control');
+const RoonApiSourceControl = require('node-roon-api-source-control');
 const RoonApiSettings = require('node-roon-api-settings');
 const net = require('net');
 const genericPool = require("generic-pool");
 const http = require('http');
+
+const inputType = {
+  minijack: 0x01,
+  line: 0x02,
+  optical: 0x03,
+  coax: 0x04,
+  usb: 0x05,
+  bluetooth: 0x06,
+  stream: 0x07
+}
+
+const zone = {
+  red: 0x01,
+  green: 0x02,
+  blue: 0x03
+}
 
 const roon = new RoonApi({
     extension_id:        'com.naepflin.roon-dynaudio',
@@ -18,7 +35,7 @@ const roon = new RoonApi({
 
 var mysettings = roon.load_config("settings") || {
     ip: "",
-    source: 0x05,
+    source: inputType.usb,
     initialvolume: 1,
 };
 
@@ -40,7 +57,7 @@ function makelayout(settings) {
     type:    "dropdown",
     title:   "Source",
     values:  [
-      { value: 0x05, title: "USB" },
+      { value: inputType.usb, title: "USB" },
     ],
     setting: "source",
   });
@@ -77,8 +94,10 @@ const svc_settings = new RoonApiSettings(roon, {
 
 const svc_volume_control = new RoonApiVolumeControl(roon);
 
+var svc_source_control = new RoonApiSourceControl(roon);
+
 roon.init_services({
-  provided_services: [ svc_volume_control, svc_settings ],
+  provided_services: [ svc_volume_control, svc_source_control, svc_settings ],
 });
 
 const initialVolume = isNaN(parseInt(mysettings.initialvolume)) ? 1 : parseInt(mysettings.initialvolume);
@@ -110,7 +129,6 @@ const device = {
 };
 
 const dynaudioVolumeControl = svc_volume_control.new_device(device);
-roon.start_discovery();
 
 const factory = {
   create: createSocket,
@@ -203,6 +221,20 @@ function processTCPResponse(message) {
     }
   }
 }
+
+const dynaudioSourceControl = svc_source_control.new_device({
+  state: {
+    display_name:     "Dynaudio Connect",
+    supports_standby: false,
+    status: "selected"
+  },
+  convenience_switch: function (req) {
+    sendInputChange(inputType.usb);
+    req.send_complete("Success");
+  }
+});
+
+roon.start_discovery();
 
 // TODO: launch with correct initial value loaded from Connect (or better from Roon!)
 // TODO: establish a TCP connection immediately when extension launches
