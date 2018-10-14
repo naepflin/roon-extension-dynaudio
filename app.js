@@ -157,7 +157,7 @@ function sendVolumeUpdate(vol) {
 
   const volumeUp = true; // TODO: Add logic here. Also seems to work without logic
   const commandCode = volumeUp ? 0x13 : 0x14;
-  const commandValue = 0x05; // TODO: Add logic here. Works only with USB input
+  const payloadSize = 0x05;
   const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
   const payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
 
@@ -165,7 +165,7 @@ function sendVolumeUpdate(vol) {
   const checksum = Math.ceil(payloadSum/255)*255-payloadSum-(payload.length-Math.ceil(payloadSum/255));
   // TODO: If the result is negative add 256
 
-  const message = Buffer.from([0xFF, 0x55, commandValue].concat(payload, [checksum]));
+  const message = Buffer.from([0xFF, 0x55, payloadSize].concat(payload, [checksum]));
 
   const resourcePromise = connectionPool.acquire();
   resourcePromise
