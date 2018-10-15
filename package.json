@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Roon Dynaudio Volume Control",
     "main": "app.js",
-    "author": "Ivo Näpflin",
+    "author": "Ivo Naepflin",
     "license": "Apache-2.0",
     "dependencies": {
         "generic-pool": "^3.4.2",
