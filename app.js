@@ -35,6 +35,7 @@ const roon = new RoonApi({
 
 var mysettings = roon.load_config("settings") || {
     ip: "",
+    zone: zone.red,
     source: inputType.usb,
     initialvolume: 1,
 };
@@ -52,12 +53,27 @@ function makelayout(settings) {
     maxlength: 15,
     setting:   "ip",
   });
-
   l.layout.push({
     type:    "dropdown",
-    title:   "Source",
+    title:   "Zone",
     values:  [
+      { value: zone.red, title: "Red" },
+      { value: zone.green, title: "Green" },
+      { value: zone.blue, title: "Blue" },
+    ],
+    setting: "zone",
+  });
+  l.layout.push({
+    type:    "dropdown",
+    title:   "Input Source",
+    values:  [
+      { value: inputType.minijack, title: "Mini Jack" },
+      { value: inputType.line, title: "Line" },
+      { value: inputType.optical, title: "Optical" },
+      { value: inputType.coax, title: "Coax" },
       { value: inputType.usb, title: "USB" },
+      { value: inputType.bluetooth, title: "Bluetooth" },
+      { value: inputType.stream, title: "Stream" },
     ],
     setting: "source",
   });
@@ -94,7 +110,7 @@ const svc_settings = new RoonApiSettings(roon, {
 
 const svc_volume_control = new RoonApiVolumeControl(roon);
 
-var svc_source_control = new RoonApiSourceControl(roon);
+const svc_source_control = new RoonApiSourceControl(roon);
 
 roon.init_services({
   provided_services: [ svc_volume_control, svc_source_control, svc_settings ],
@@ -174,7 +190,7 @@ function sendVolumeUpdate(vol) {
   const dynaudioVol = Math.ceil(vol);
   const volumeUp = true; // TODO: Add logic here. Also seems to work without logic
   const commandCode = volumeUp ? 0x13 : 0x14;
-  const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
+  const statusValue = 16 * mysettings.source + mysettings.zone;
   const payload = [0x2F, 0xA0, commandCode, dynaudioVol, statusValue];
   sendPayload(payload);
 
@@ -183,7 +199,7 @@ function sendVolumeUpdate(vol) {
 
 function sendInputChange(input) {
   const commandCode = 0x15;
-  const statusValue = 0x51; // TODO: Add logic here. Works only with USB input and zone Red
+  const statusValue = 16 * mysettings.source + mysettings.zone;
   const payload = [0x2F, 0xA0, commandCode, input, statusValue];
   sendPayload(payload);
 }
@@ -224,12 +240,12 @@ function processTCPResponse(message) {
 
 const dynaudioSourceControl = svc_source_control.new_device({
   state: {
-    display_name:     "Dynaudio Connect",
+    display_name: "Dynaudio Connect",
     supports_standby: false,
     status: "selected"
   },
-  convenience_switch: function (req) {
-    sendInputChange(inputType.usb);
+  convenience_switch: function (req, opts) {
+    sendInputChange(mysettings.source);
     req.send_complete("Success");
   }
 });
