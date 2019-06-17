@@ -6,7 +6,7 @@
     "author": "Ivo Naepflin",
     "license": "Apache-2.0",
     "dependencies": {
-        "generic-pool": "^3.4.2",
+        "generic-pool": "^3.7.1",
         "node-roon-api": "github:roonlabs/node-roon-api",
         "node-roon-api-settings": "github:roonlabs/node-roon-api-settings",
         "node-roon-api-source-control": "github:roonlabs/node-roon-api-source-control",
