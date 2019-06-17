@@ -233,7 +233,7 @@ function processTCPResponse(message) {
     // check if it's a volume change (0x04 means volume up, 0x05 means volume down):
     if(payload[2] == 0x04 || payload[2] == 0x05) {
       const newvol = payload[3];
-      dynaudioVolumeControl.update_state({ volume_value: newvol });;
+      dynaudioVolumeControl.update_state({ volume_value: newvol });
     }
   }
 }
