@@ -6,7 +6,6 @@ const RoonApiSourceControl = require('node-roon-api-source-control');
 const RoonApiSettings = require('node-roon-api-settings');
 const net = require('net');
 const genericPool = require("generic-pool");
-const http = require('http');
 
 const inputType = {
   minijack: 0x01,
